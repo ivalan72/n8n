@@ -136,7 +136,19 @@ export class MicrosoftSql implements INodeType {
 				description:
 					'Comma-separated list of the properties which should used as columns for the new rows',
 			},
-
+			{
+				displayName: 'Identity Insert',
+				name: 'identityInsert',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						operation: ['insert'],
+					},
+				},
+				default: false,
+				required: true,
+				description: 'Enable identity insert for the table',
+			},
 			// ----------------------------------
 			//         update
 			// ----------------------------------
@@ -314,8 +326,9 @@ export class MicrosoftSql implements INodeType {
 
 			if (operation === 'insert') {
 				const tables = createTableStruct(this.getNodeParameter, items);
+				const identityInsert = this.getNodeParameter('identityInsert', 0) as boolean;
 
-				await insertOperation(tables, pool);
+				await insertOperation(tables, pool, identityInsert);
 
 				responseData = items;
 			}

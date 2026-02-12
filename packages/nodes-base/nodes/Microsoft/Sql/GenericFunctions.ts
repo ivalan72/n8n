@@ -1,6 +1,6 @@
 import type { IResult } from 'mssql';
 import mssql from 'mssql';
-import type { IDataObject, INodeExecutionData } from 'n8n-workflow';
+import { IDataObject, INodeExecutionData } from 'n8n-workflow';
 import { deepCopy } from 'n8n-workflow';
 
 import { chunk, flatten } from '@utils/utilities';
@@ -162,7 +162,11 @@ export function mssqlChunk(rows: IDataObject[]): IDataObject[][] {
 	return chunked;
 }
 
-export async function insertOperation(tables: ITables, pool: mssql.ConnectionPool) {
+export async function insertOperation(
+	tables: ITables,
+	pool: mssql.ConnectionPool,
+	identityInsert: boolean,
+) {
 	return await executeQueryQueue(
 		tables,
 		({ table, columnString, items }: OperationInputData): Array<Promise<object>> => {
@@ -179,9 +183,18 @@ export async function insertOperation(tables: ITables, pool: mssql.ConnectionPoo
 					}
 				}
 
-				const query = `INSERT INTO ${escapeTableName(table)} (${formatColumns(
+				const escapedTable = escapeTableName(table);
+				let query = `INSERT INTO ${escapedTable} (${formatColumns(
 					columnString,
 				)}) VALUES ${valuesPlaceholder.join(', ')};`;
+
+				if (identityInsert) {
+					query = `
+						SET IDENTITY_INSERT ${escapedTable} ON;
+						${query}
+						SET IDENTITY_INSERT ${escapedTable} OFF;
+					`;
+				}
 
 				return await request.query(query);
 			});
